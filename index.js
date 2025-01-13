@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const { MongoClient, ServerApiVersion } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -24,12 +24,11 @@ app.use(
   })
 );
 
+// JWT verification middleware
 const verifyToken = (req, res, next) => {
   const { token } = req.cookies;
   const errMessage = { message: "Unauthorized access" };
-
   if (!token) return res.status(401).send(errMessage);
-
   jwt.verify(token, jwtSecret, (err, decoded) => {
     if (err) return res.status(401).send(errMessage);
     req.user = decoded;
@@ -37,6 +36,17 @@ const verifyToken = (req, res, next) => {
   });
 };
 
+// Error-handling middleware
+const errorHandler = (err, req, res, next) => {
+  // console.error("Error: ", err.stack); // Log error for debugging
+  res.status(500).send({
+    success: false,
+    message: "An internal server error occurred",
+    details: err.message,
+  });
+};
+
+// Initialize MongoDB client
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -48,16 +58,20 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Collections List
+    const dataBase = client.db("Pixel_News");
+    const userCollection = dataBase.collection("users");
 
-    // jwt functionalities
+    // Cookie options
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
     };
 
-    // creating JWT token
-    app.post("/jwt", async (req, res) => {
+    // Routes
+
+    // Create JWT token
+    app.post("/jwt", async (req, res, next) => {
       const user = req.body;
       const expiresIn = { expiresIn: "23h" };
 
@@ -65,24 +79,46 @@ async function run() {
         const token = jwt.sign(user, jwtSecret, expiresIn);
         res
           .cookie("token", token, cookieOptions)
-          .send({ success: true, message: "jwt token successfully created" });
+          .send({ success: true, message: "JWT token successfully created" });
       } catch (error) {
-        res.status(500).send({ error: `An error occurred: ${error.message}` });
+        next(error);
       }
     });
 
-    // Deleting JWT token
-    app.delete("/logout", (req, res) => {
+    // Delete JWT token (logout)
+    app.delete("/logout", (req, res, next) => {
       try {
         res
           .clearCookie("token", cookieOptions)
-          .send({ success: true, message: "jwt token successfully deleted" });
+          .send({ success: true, message: "JWT token successfully deleted" });
       } catch (error) {
-        res.status(500).send({ error: `An error occurred: ${error.message}` });
+        next(error);
       }
     });
 
     //
+
+    // user related functionalities
+    // Create a single user
+    app.post("/users", async (req, res, next) => {
+      const user = req.body;
+
+      try {
+        const existingUser = await userCollection.findOne({
+          email: user?.email,
+        });
+
+        if (!existingUser) {
+          user.role = "unpaid";
+          const result = await userCollection.insertOne(user);
+          res.status(201).send(result);
+        } else {
+          res.send({ message: "User already exists" });
+        }
+      } catch (error) {
+        next(error);
+      }
+    });
 
     // // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
@@ -95,17 +131,15 @@ async function run() {
 }
 run();
 
-// Error Handling Middleware
-app.use((err, req, res, next) => {
-  res.status(500).send({
-    success: false,
-    message: "An internal server error occurred",
-    details: err.message,
-  });
-});
-
+// Root route
 app.get("/", (req, res) => {
-  res.status(200).send("Bistro Boss is setting");
+  res.status(200).send("Pixel News API is up and running!");
 });
 
-app.listen(port);
+// Error-handling middleware
+app.use(errorHandler);
+
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
