@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -100,6 +100,32 @@ async function run() {
     //
 
     // article related functionalities
+
+    // get articles filtered by status approved
+    app.get("/articles/approved", async (req, res, next) => {
+      try {
+        const articles = await articleCollection
+          .find({ status: "approved" })
+          .toArray();
+        res.send(articles);
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    // get a single article by _id
+    app.get("/articles/:id", verifyToken, async (req, res, next) => {
+      const id = req.params.id;
+      try {
+        const article = await articleCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        res.send(article);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // Create a single article
     app.post("/articles", async (req, res, next) => {
       const article = req.body;
