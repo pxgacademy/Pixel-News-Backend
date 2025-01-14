@@ -140,6 +140,22 @@ async function run() {
     });
 
     // user related functionalities
+
+    // get a single user's role and lastLoginAt filtered by email
+    app.get("/users/role/:email", async (req, res, next) => {
+      const email = req.params.email;
+      try {
+        const user = await userCollection.findOne(
+          { email },
+          { projection: { isAdmin: 1, isPremium: 1, _id: 0 } }
+        );
+        res.send(user);
+      } catch (error) {
+        next(error);
+      }
+    });
+    
+
     // Create a single user
     app.post("/users", async (req, res, next) => {
       const user = req.body;
@@ -150,7 +166,8 @@ async function run() {
         });
 
         if (!existingUser) {
-          user.role = "unpaid";
+          user.isAdmin = false;
+          user.isPremium = false;
           const result = await userCollection.insertOne(user);
           res.status(201).send(result);
         } else {
