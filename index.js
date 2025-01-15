@@ -27,11 +27,14 @@ app.use(
 
 // JWT verification middleware
 const verifyToken = (req, res, next) => {
-  const { token } = req.cookies;
-  const errMessage = { message: "Unauthorized access" };
-  if (!token) return res.status(401).send(errMessage);
+  const token = req?.headers?.authorization?.split(" ")[1];
+  if (!token)
+    return res
+      .status(401)
+      .send({ message: "Access denied. No token provided." });
   jwt.verify(token, jwtSecret, (err, decoded) => {
-    if (err) return res.status(401).send(errMessage);
+    if (err)
+      return res.status(403).send({ message: "Access denied. Invalid token." });
     req.user = decoded;
     next();
   });
@@ -65,42 +68,29 @@ async function run() {
     const publisherCollection = dataBase.collection("publishers");
     const subscriptionCollection = dataBase.collection("subscriptions");
 
-    // Cookie options
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-    };
-
     // Routes
-
     // Create JWT token
-    app.post("/jwt", async (req, res, next) => {
+    app.post("/jwt", async (req, res) => {
       const user = req.body;
-      const expiresIn = { expiresIn: "23h" };
-
-      try {
-        const token = jwt.sign(user, jwtSecret, expiresIn);
-        res
-          .cookie("token", token, cookieOptions)
-          .send({ success: true, message: "JWT token successfully created" });
-      } catch (error) {
-        next(error);
-      }
+      const token = jwt.sign(user, jwtSecret, { expiresIn: "23h" });
+      res.send({ token });
     });
 
-    // Delete JWT token (logout)
-    app.delete("/logout", (req, res, next) => {
-      try {
-        res
-          .clearCookie("token", cookieOptions)
-          .send({ success: true, message: "JWT token successfully deleted" });
-      } catch (error) {
-        next(error);
-      }
-    });
-
-    //
+    // verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.user.email;
+      const user = await userCollection.findOne(
+        { email },
+        { projection: { isAdmin: 1, _id: 0 } }
+      );
+      const isAdmin = user?.isAdmin;
+      console.log(isAdmin);
+      if (!isAdmin)
+        return res
+          .status(403)
+          .send({ message: "Access denied. You are not an admin." });
+      next();
+    };
 
     // article related functionalities
     // get articles filtered by status approved
@@ -270,7 +260,6 @@ async function run() {
             { email: history.email },
             { $set: { isPremium: true, paidDate } }
           );
-          console.log(updateUser);
           res.status(201).send({ paymentHistory, updateUser });
         } else {
           res.status(500).send({ message: "Failed to insert payment history" });
