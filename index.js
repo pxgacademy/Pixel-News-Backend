@@ -9,6 +9,7 @@ const app = express();
 const port = process.env.PORT || 5000;
 const jwtSecret = process.env.ACCESS_TOKEN_SECRET;
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
+const stripe = require("stripe")(stripeSecret);
 
 // const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.rm6ii.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -113,6 +114,18 @@ async function run() {
       }
     });
 
+    // get articles filtered by isPaid true
+    app.get("/articles/premium", verifyToken, async (req, res, next) => {
+      try {
+        const articles = await articleCollection
+          .find({ isPaid: true })
+          .toArray();
+        res.send(articles);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // get a single article by _id
     app.get("/articles/:id", verifyToken, async (req, res, next) => {
       const id = req.params.id;
@@ -141,6 +154,20 @@ async function run() {
           const result = await articleCollection.insertOne(article);
           res.status(201).send(result);
         } else res.status(500).send({ message: "Failed to insert article" });
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    // increase viewCount to a single article filtered by _id
+    app.patch("/articles/view-count/:id", async (req, res, next) => {
+      const id = req.params.id;
+      try {
+        const result = await articleCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $inc: { viewCount: 1 } }
+        );
+        res.send(result);
       } catch (error) {
         next(error);
       }
@@ -202,6 +229,24 @@ async function run() {
         const update = { $set: time };
         const result = await userCollection.updateOne({ email }, update);
         res.send(result);
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    // payment related functionalities
+    // payment intent
+    app.post("/create-payment-intent", async (req, res, next) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+
+      try {
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+        res.status(200).send({ clientSecret: paymentIntent.client_secret });
       } catch (error) {
         next(error);
       }
