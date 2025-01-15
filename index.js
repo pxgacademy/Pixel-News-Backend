@@ -106,7 +106,7 @@ async function run() {
     });
 
     // get articles filtered by isPaid true
-    app.get("/articles/premium", verifyToken, async (req, res, next) => {
+    app.get("/articles/premium", async (req, res, next) => {
       try {
         const articles = await articleCollection
           .find({ isPaid: true })
@@ -180,11 +180,23 @@ async function run() {
     app.get("/users/role/:email", async (req, res, next) => {
       const email = req.params.email;
       try {
-        const user = await userCollection.findOne(
-          { email },
-          { projection: { isAdmin: 1, isPremium: 1, _id: 0 } }
-        );
+        const user = await userCollection.findOne({ email });
         res.send(user);
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    // update a user role isPremium false or isAdmin true filtered by user email
+    app.patch("/users/role/update/:email", async (req, res, next) => {
+      const email = req.params.email;
+      const role = req.body;
+      try {
+        const result = await userCollection.updateOne(
+          { email },
+          { $set: role }
+        );
+        res.send(result);
       } catch (error) {
         next(error);
       }
@@ -213,6 +225,7 @@ async function run() {
     });
 
     // update user's last login time by patch request
+    /*
     app.patch("/users/:email", async (req, res, next) => {
       const email = req.params.email;
       const time = req.body;
@@ -224,6 +237,7 @@ async function run() {
         next(error);
       }
     });
+    */
 
     // payment related functionalities
     // payment intent
