@@ -61,6 +61,7 @@ async function run() {
     const dataBase = client.db("Pixel_News");
     const userCollection = dataBase.collection("users");
     const articleCollection = dataBase.collection("articles");
+    const publisherCollection = dataBase.collection("publishers");
 
     // Cookie options
     const cookieOptions = {
@@ -100,7 +101,6 @@ async function run() {
     //
 
     // article related functionalities
-
     // get articles filtered by status approved
     app.get("/articles/approved", async (req, res, next) => {
       try {
@@ -129,18 +129,35 @@ async function run() {
     // Create a single article
     app.post("/articles", async (req, res, next) => {
       const article = req.body;
-      article.date = new Date();
-      article.status = "pending";
+      const id = { _id: new ObjectId(article?.publisher) };
       try {
-        const result = await articleCollection.insertOne(article);
-        res.status(201).send(result);
+        const publisher = await publisherCollection.findOne(id, {
+          projection: { _id: 0 },
+        });
+        if (publisher && publisher.name) {
+          article.date = new Date();
+          article.status = "pending";
+          article.publisher = publisher;
+          const result = await articleCollection.insertOne(article);
+          res.status(201).send(result);
+        } else res.status(500).send({ message: "Failed to insert article" });
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    // publisher related functionalities
+    // get all publishers
+    app.get("/publishers", async (req, res, next) => {
+      try {
+        const publishers = await publisherCollection.find().toArray();
+        res.send(publishers);
       } catch (error) {
         next(error);
       }
     });
 
     // user related functionalities
-
     // get a single user's role and lastLoginAt filtered by email
     app.get("/users/role/:email", async (req, res, next) => {
       const email = req.params.email;
@@ -154,7 +171,6 @@ async function run() {
         next(error);
       }
     });
-    
 
     // Create a single user
     app.post("/users", async (req, res, next) => {
