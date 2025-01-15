@@ -63,6 +63,7 @@ async function run() {
     const userCollection = dataBase.collection("users");
     const articleCollection = dataBase.collection("articles");
     const publisherCollection = dataBase.collection("publishers");
+    const subscriptionCollection = dataBase.collection("subscriptions");
 
     // Cookie options
     const cookieOptions = {
@@ -247,6 +248,33 @@ async function run() {
           payment_method_types: ["card"],
         });
         res.status(200).send({ clientSecret: paymentIntent.client_secret });
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    // insert a new payment
+    app.post("/subscription-histories", verifyToken, async (req, res, next) => {
+      const history = req.body;
+      history.date = Date.now();
+      const time = parseInt(history.priceAndTime.time);
+      const timeInMs = time * 60 * 1000;
+
+      try {
+        const paymentHistory = await subscriptionCollection.insertOne(history);
+        if (paymentHistory?.insertedId) {
+          const date = Date.now();
+          paidDate = timeInMs + date;
+
+          const updateUser = await userCollection.updateOne(
+            { email: history.email },
+            { $set: { isPremium: true, paidDate } }
+          );
+          console.log(updateUser);
+          res.status(201).send({ paymentHistory, updateUser });
+        } else {
+          res.status(500).send({ message: "Failed to insert payment history" });
+        }
       } catch (error) {
         next(error);
       }
