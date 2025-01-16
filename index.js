@@ -147,16 +147,38 @@ async function run() {
       const article = req.body;
       const id = { _id: new ObjectId(article?.publisher) };
       try {
-        const publisher = await publisherCollection.findOne(id, {
-          projection: { _id: 0 },
-        });
+        const publisher = await publisherCollection.findOne(id);
         if (publisher && publisher.name) {
           article.date = new Date();
           article.status = "pending";
+          article.isPaid = false;
+          article.viewCount = 0;
           article.publisher = publisher;
           const result = await articleCollection.insertOne(article);
           res.status(201).send(result);
         } else res.status(500).send({ message: "Failed to insert article" });
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    // update an article filtered by _id
+    app.put("/articles/:id", verifyToken, async (req, res, next) => {
+      const article = req.body;
+      const id = req.params.id;
+      const publisherId = { _id: new ObjectId(article?.publisher) };
+      const articleId = { _id: new ObjectId(id) };
+
+      try {
+        const publisher = await publisherCollection.findOne(publisherId);
+        if (publisher && publisher.name) {
+          article.publisher = publisher;
+          (article.isPaid = false), (article.status = "pending");
+          const result = await articleCollection.updateOne(articleId, {
+            $set: article,
+          });
+          res.send(result);
+        } else res.status(500).send({ message: "Failed to update article" });
       } catch (error) {
         next(error);
       }
