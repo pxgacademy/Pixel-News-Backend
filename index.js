@@ -117,6 +117,18 @@ async function run() {
       }
     });
 
+    // get articles filtered by creator email
+    app.get("/articles/creator/:email", async (req, res, next) => {
+      const email = req.params.email;
+      const query = { creator: email };
+      try {
+        const articles = await articleCollection.find(query).toArray();
+        res.send(articles);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // get a single article by _id
     app.get("/articles/:id", verifyToken, async (req, res, next) => {
       const id = req.params.id;
@@ -180,7 +192,10 @@ async function run() {
     app.get("/users/role/:email", async (req, res, next) => {
       const email = req.params.email;
       try {
-        const user = await userCollection.findOne({ email });
+        const user = await userCollection.findOne(
+          { email },
+          { projection: { isAdmin: 1, isPremium: 1, paidDate: 1, _id: 0 } }
+        );
         res.send(user);
       } catch (error) {
         next(error);
