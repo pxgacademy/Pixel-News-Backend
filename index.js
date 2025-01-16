@@ -176,6 +176,19 @@ async function run() {
       }
     });
 
+    // delete an article filtered by _id
+    app.delete("/articles/:id", verifyAdmin, async (req, res, next) => {
+      const id = req.params.id;
+      try {
+        const result = await articleCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+        res.send(result);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // publisher related functionalities
     // get all publishers
     app.get("/publishers", async (req, res, next) => {
