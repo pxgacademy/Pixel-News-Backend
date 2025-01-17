@@ -93,6 +93,45 @@ async function run() {
     };
 
     // article related functionalities
+
+    // get all articles with aggregate for getting user's name, email, and image
+    app.get("/articles", async (req, res, next) => {
+      try {
+        const articles = await articleCollection
+          .aggregate([
+            {
+              $lookup: {
+                from: "users",
+                localField: "creator",
+                foreignField: "email",
+                as: "userInfo",
+              },
+            },
+            {
+              $unwind: {
+                path: "$userInfo",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $project: {
+                title: 1,
+                date: 1,
+                status: 1,
+                publisher: 1,
+                "userInfo.name": 1,
+                "userInfo.email": 1,
+                "userInfo.image": 1,
+              },
+            },
+          ])
+          .toArray();
+        res.send(articles);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // get articles filtered by status approved
     app.get("/articles/approved", async (req, res, next) => {
       try {
