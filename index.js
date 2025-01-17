@@ -335,6 +335,27 @@ async function run() {
       }
     });
 
+    // Dashboard related functionalities
+
+    // admin analytics
+    app.get("/admin/analytics", async (req, res, next) => {
+      try {
+        const articles = await articleCollection.estimatedDocumentCount();
+        const users = await userCollection.estimatedDocumentCount();
+        const subscriptions =
+          await subscriptionCollection.estimatedDocumentCount();
+        const totalPayment = await subscriptionCollection
+          .aggregate([
+            { $project: { totalPrice: { $sum: "$priceAndTime.price" } } },
+          ])
+          .toArray();
+        const payment = totalPayment?.[0] && totalPayment[0].totalPrice;
+        res.send({ articles, users, subscriptions, payment });
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
