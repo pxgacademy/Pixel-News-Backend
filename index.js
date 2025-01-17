@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
+const helmet = require("helmet");
 const jwt = require("jsonwebtoken");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
@@ -14,6 +15,34 @@ const stripe = require("stripe")(stripeSecret);
 // const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.rm6ii.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const uri = `mongodb://localhost:27017`;
+
+// Add Helmet middleware for security
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "https://js.stripe.com",
+          "https://gc.kis.v2.scr.kaspersky-labs.com",
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          "https://fonts.googleapis.com",
+          "https://gc.kis.v2.scr.kaspersky-labs.com",
+        ],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        connectSrc: [
+          "'self'",
+          "https://api.stripe.com",
+          "wss://gc.kis.v2.scr.kaspersky-labs.com",
+        ],
+      },
+    },
+  })
+);
 
 // Middleware
 app.use(cookieParser());
@@ -97,6 +126,8 @@ async function run() {
     // get all articles with aggregate for getting user's name, email, and image
     app.get("/articles", async (req, res, next) => {
       try {
+        const skip = parseInt(req.query.skip) || 0;
+        const limit = parseInt(req.query.limit);
         const articles = await articleCollection
           .aggregate([
             {
@@ -124,6 +155,12 @@ async function run() {
                 "userInfo.name": 1,
                 "userInfo.image": 1,
               },
+            },
+            {
+              $skip: skip,
+            },
+            {
+              $limit: limit,
             },
           ])
           .toArray();
