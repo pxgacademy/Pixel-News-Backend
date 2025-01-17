@@ -226,6 +226,21 @@ async function run() {
       }
     });
 
+    // update an article status filtered by _id
+    app.patch("/articles/status-update/:id", async (req, res, next) => {
+      const article = req.body;
+      const id = req.params.id;
+      const articleId = { _id: new ObjectId(id) };
+      try {
+        const result = await articleCollection.updateOne(articleId, {
+          $set: article,
+        });
+        res.send(result);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // increase viewCount to a single article filtered by _id
     app.patch("/articles/view-count/:id", async (req, res, next) => {
       const id = req.params.id;
