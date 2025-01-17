@@ -224,7 +224,17 @@ async function run() {
       }
     });
 
-    // user related functionalities
+    // user related functionalities ==========
+    // get all users
+    app.get("/users", async (req, res, next) => {
+      try {
+        const users = await userCollection.find().toArray();
+        res.send(users);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // get a single user's role and lastLoginAt filtered by email
     app.get("/users/role/:email", async (req, res, next) => {
       const email = req.params.email;
