@@ -109,7 +109,9 @@ async function run() {
     app.get("/articles/premium", async (req, res, next) => {
       try {
         const articles = await articleCollection
-          .find({ isPaid: true })
+          .find({
+            $and: [{ isPaid: true }, { status: "approved" }],
+          })
           .toArray();
         res.send(articles);
       } catch (error) {
