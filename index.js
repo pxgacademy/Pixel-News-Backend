@@ -358,6 +358,22 @@ async function run() {
     });
 
     // user related functionalities ==========
+
+    // get total counts of premium and not premium users
+    app.get("/users/counts", async (req, res, next) => {
+      try {
+        const nonPremium = await userCollection.countDocuments({
+          isPremium: false,
+        });
+        const premium = await userCollection.countDocuments({
+          isPremium: true,
+        });
+        res.send({ nonPremium, premium });
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // get all users
     app.get("/users", async (req, res, next) => {
       try {
