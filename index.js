@@ -127,6 +127,32 @@ async function run() {
 
     // article related functionalities
 
+    // get 6 articles for slider
+    app.get("/slider-articles", async (req, res, next) => {
+      try {
+        const articles = await articleCollection
+          .aggregate([
+            { $match: { status: "approved" } },
+            { $sort: { viewCount: -1 } },
+            { $limit: 6 },
+            {
+              $project: {
+                title: 1,
+                description: 1,
+                viewCount: 1,
+                image: 1,
+                date: 1,
+                "publisher.name": 1,
+              },
+            },
+          ])
+          .toArray();
+        res.send(articles);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // get all articles with aggregate for getting user's name, email, and image
     app.get("/articles", async (req, res, next) => {
       try {
