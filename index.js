@@ -392,6 +392,48 @@ async function run() {
       }
     });
 
+    // get a single user by email
+    app.get("/users/:email", async (req, res, next) => {
+      const email = req.params.email;
+      try {
+        const user = await userCollection.findOne({ email });
+        const articles = await articleCollection.countDocuments({
+          creator: email,
+        });
+        const articlesViews = await articleCollection
+          .aggregate([
+            { $match: { creator: email } },
+            {
+              $group: {
+                _id: null,
+                total: { $sum: "$viewCount" },
+              },
+            },
+            { $project: { _id: 0, total: 1 } },
+          ])
+          .toArray();
+        const subscriptions = await subscriptionCollection
+          .aggregate([
+            { $match: { email } },
+            {
+              $group: {
+                _id: null,
+                payment: { $sum: "$priceAndTime.price" },
+              },
+            },
+            { $project: { _id: 0, payment: 1 } },
+          ])
+          .toArray();
+
+        const totalViews = articlesViews?.[0] ? articlesViews[0].total : 0;
+        const totalPayment = subscriptions?.[0] ? subscriptions[0].payment : 0;
+
+        res.send({ user, articles, totalViews, totalPayment });
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // get a single user's role and lastLoginAt filtered by email
     app.get("/users/role/:email", async (req, res, next) => {
       const email = req.params.email;
