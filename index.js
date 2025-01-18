@@ -49,7 +49,11 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: [
+      "http://localhost:5173",
+      "https://assignment-12-abd.web.app",
+      "https://assignment-12-abd.firebaseapp.com",
+    ],
     credentials: true,
   })
 );
@@ -316,11 +320,30 @@ async function run() {
       }
     });
 
+    // insert a new publisher
+    app.post("/publishers", async (req, res, next) => {
+      const publisher = req.body;
+      try {
+        const result = await publisherCollection.insertOne(publisher);
+        res.status(201).send(result);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // user related functionalities ==========
     // get all users
     app.get("/users", async (req, res, next) => {
       try {
-        const users = await userCollection.find().toArray();
+        const skip = parseInt(req.query.skip) || 0;
+        const limit = parseInt(req.query.limit) || 10;
+
+        const users = await userCollection
+          .find()
+          .skip(skip)
+          .limit(limit)
+          .toArray();
+
         res.send(users);
       } catch (error) {
         next(error);
