@@ -611,6 +611,13 @@ async function run() {
       try {
         const articles = await articleCollection.estimatedDocumentCount();
         const users = await userCollection.estimatedDocumentCount();
+        const nonPremium = await userCollection.countDocuments({
+          isPremium: false,
+        });
+        const premium = await userCollection.countDocuments({
+          isPremium: true,
+        });
+        const publishers = await publisherCollection.estimatedDocumentCount();
         const subscriptions =
           await subscriptionCollection.estimatedDocumentCount();
         const totalPayment = await subscriptionCollection
@@ -619,7 +626,29 @@ async function run() {
           ])
           .toArray();
         const payment = totalPayment?.[0] && totalPayment[0].totalPrice;
-        res.send({ articles, users, subscriptions, payment });
+
+        const articlesPerPublisher = await articleCollection
+          .aggregate([
+            {
+              $group: {
+                _id: "$publisher.name",
+                totalArticles: { $sum: 1 },
+                totalViews: { $sum: "$viewCount" },
+              },
+            },
+          ])
+          .toArray();
+
+        res.send({
+          articles,
+          users,
+          nonPremium,
+          premium,
+          publishers,
+          subscriptions,
+          payment,
+          articlesPerPublisher,
+        });
       } catch (error) {
         next(error);
       }
