@@ -142,6 +142,7 @@ async function run() {
                 viewCount: 1,
                 image: 1,
                 date: 1,
+                isPaid: 1,
                 "publisher.name": 1,
               },
             },
