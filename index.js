@@ -258,13 +258,39 @@ async function run() {
     });
 
     // get a single article by _id
-    app.get("/articles/:id", verifyToken, async (req, res, next) => {
+    app.get("/articles/:id", async (req, res, next) => {
       const id = req.params.id;
       try {
-        const article = await articleCollection.findOne({
-          _id: new ObjectId(id),
-        });
-        res.send(article);
+        const article = await articleCollection
+          .aggregate([
+            { $match: { _id: new ObjectId(id) } },
+            {
+              $lookup: {
+                from: "users",
+                localField: "creator",
+                foreignField: "email",
+                as: "userInfo",
+              },
+            },
+            {
+              $unwind: {
+                path: "$userInfo",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $project: {
+                "userInfo._id": 0,
+                "userInfo.createdAt": 0,
+                "userInfo.lastLoginAt": 0,
+                "userInfo.isAdmin": 0,
+                "userInfo.isPremium": 0,
+                "userInfo.paidDate": 0,
+              },
+            },
+          ])
+          .toArray();
+        res.send(article?.[0] || article);
       } catch (error) {
         next(error);
       }
@@ -475,6 +501,21 @@ async function run() {
         const result = await userCollection.updateOne(
           { email },
           { $set: role }
+        );
+        res.send(result);
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    // update user info filtered by _id with patch request
+    app.patch("/users/update/:id", async (req, res, next) => {
+      const user = req.body;
+      const id = req.params.id;
+      try {
+        const result = await userCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: user }
         );
         res.send(result);
       } catch (error) {
