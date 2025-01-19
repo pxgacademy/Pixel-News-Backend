@@ -12,9 +12,9 @@ const jwtSecret = process.env.ACCESS_TOKEN_SECRET;
 const stripeSecret = process.env.STRIPE_SECRET_KEY;
 const stripe = require("stripe")(stripeSecret);
 
-// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.rm6ii.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.rm6ii.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
-const uri = `mongodb://localhost:27017`;
+// const uri = `mongodb://localhost:27017`;
 
 // Add Helmet middleware for security
 app.use(
@@ -280,7 +280,6 @@ async function run() {
             },
             {
               $project: {
-                "userInfo._id": 0,
                 "userInfo.createdAt": 0,
                 "userInfo.lastLoginAt": 0,
                 "userInfo.isAdmin": 0,
@@ -368,7 +367,7 @@ async function run() {
     });
 
     // delete an article filtered by _id
-    app.delete("/articles/:id", verifyAdmin, async (req, res, next) => {
+    app.delete("/articles/:id", async (req, res, next) => {
       const id = req.params.id;
       try {
         const result = await articleCollection.deleteOne({
