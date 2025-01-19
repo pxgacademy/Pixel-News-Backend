@@ -203,9 +203,28 @@ async function run() {
     // get articles filtered by status approved
     app.get("/articles/approved", async (req, res, next) => {
       try {
-        const articles = await articleCollection
-          .find({ status: "approved" })
-          .toArray();
+        const { tags, publisher, title } = req.query;
+        const query = { status: "approved" };
+
+        // Filter by tags
+        // if (tags && tags !== "all") query.tags = tags;
+
+        // Use $regex in tags
+        if (tags && tags !== "all") {
+          query.tags = { $elemMatch: { $regex: tags, $options: "i" } };
+        }
+
+        // Filter by publisher
+        if (publisher && publisher !== "All Publishers") {
+          query["publisher.name"] = publisher;
+        }
+
+        // Filter by title
+        if (title && title !== "") {
+          query.title = { $regex: title, $options: "i" }; // Case-insensitive partial match
+        }
+
+        const articles = await articleCollection.find(query).toArray();
         res.send(articles);
       } catch (error) {
         next(error);
