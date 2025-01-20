@@ -117,7 +117,6 @@ async function run() {
         { projection: { isAdmin: 1, _id: 0 } }
       );
       const isAdmin = user?.isAdmin;
-      console.log(isAdmin);
       if (!isAdmin)
         return res
           .status(403)
@@ -155,10 +154,10 @@ async function run() {
     });
 
     // get all articles with aggregate for getting user's name, email, and image
-    app.get("/articles", async (req, res, next) => {
+    app.get("/articles", verifyToken, verifyAdmin, async (req, res, next) => {
       try {
         const skip = parseInt(req.query.skip) || 0;
-        const limit = parseInt(req.query.limit);
+        const limit = parseInt(req.query.limit) || 10;
         const articles = await articleCollection
           .aggregate([
             {
@@ -233,7 +232,7 @@ async function run() {
     });
 
     // get articles filtered by isPaid true
-    app.get("/articles/premium", async (req, res, next) => {
+    app.get("/articles/premium", verifyToken, async (req, res, next) => {
       try {
         const articles = await articleCollection
           .find({
@@ -247,7 +246,7 @@ async function run() {
     });
 
     // get articles filtered by creator email
-    app.get("/articles/creator/:email", async (req, res, next) => {
+    app.get("/articles/creator/:email", verifyToken, async (req, res, next) => {
       const email = req.params.email;
       const query = { creator: email };
       try {
@@ -259,7 +258,7 @@ async function run() {
     });
 
     // get a single article by _id
-    app.get("/articles/:id", async (req, res, next) => {
+    app.get("/articles/:id", verifyToken, async (req, res, next) => {
       const id = req.params.id;
       try {
         const article = await articleCollection
@@ -297,7 +296,7 @@ async function run() {
     });
 
     // Create a single article
-    app.post("/articles", async (req, res, next) => {
+    app.post("/articles", verifyToken, async (req, res, next) => {
       const article = req.body;
       const id = { _id: new ObjectId(article?.publisher) };
       try {
@@ -339,36 +338,45 @@ async function run() {
     });
 
     // update an article status filtered by _id
-    app.patch("/articles/status-update/:id", async (req, res, next) => {
-      const article = req.body;
-      const id = req.params.id;
-      const articleId = { _id: new ObjectId(id) };
-      try {
-        const result = await articleCollection.updateOne(articleId, {
-          $set: article,
-        });
-        res.send(result);
-      } catch (error) {
-        next(error);
+    app.patch(
+      "/articles/status-update/:id",
+      verifyToken,
+      verifyAdmin,
+      async (req, res, next) => {
+        const article = req.body;
+        const id = req.params.id;
+        const articleId = { _id: new ObjectId(id) };
+        try {
+          const result = await articleCollection.updateOne(articleId, {
+            $set: article,
+          });
+          res.send(result);
+        } catch (error) {
+          next(error);
+        }
       }
-    });
+    );
 
     // increase viewCount to a single article filtered by _id
-    app.patch("/articles/view-count/:id", async (req, res, next) => {
-      const id = req.params.id;
-      try {
-        const result = await articleCollection.updateOne(
-          { _id: new ObjectId(id) },
-          { $inc: { viewCount: 1 } }
-        );
-        res.send(result);
-      } catch (error) {
-        next(error);
+    app.patch(
+      "/articles/view-count/:id",
+      verifyToken,
+      async (req, res, next) => {
+        const id = req.params.id;
+        try {
+          const result = await articleCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $inc: { viewCount: 1 } }
+          );
+          res.send(result);
+        } catch (error) {
+          next(error);
+        }
       }
-    });
+    );
 
     // delete an article filtered by _id
-    app.delete("/articles/:id", async (req, res, next) => {
+    app.delete("/articles/:id", verifyToken, async (req, res, next) => {
       const id = req.params.id;
       try {
         const result = await articleCollection.deleteOne({
@@ -392,15 +400,20 @@ async function run() {
     });
 
     // insert a new publisher
-    app.post("/publishers", async (req, res, next) => {
-      const publisher = req.body;
-      try {
-        const result = await publisherCollection.insertOne(publisher);
-        res.status(201).send(result);
-      } catch (error) {
-        next(error);
+    app.post(
+      "/publishers",
+      verifyToken,
+      verifyAdmin,
+      async (req, res, next) => {
+        const publisher = req.body;
+        try {
+          const result = await publisherCollection.insertOne(publisher);
+          res.status(201).send(result);
+        } catch (error) {
+          next(error);
+        }
       }
-    });
+    );
 
     // user related functionalities ==========
 
@@ -420,7 +433,7 @@ async function run() {
     });
 
     // get all users
-    app.get("/users", async (req, res, next) => {
+    app.get("/users", verifyToken, verifyAdmin, async (req, res, next) => {
       try {
         const skip = parseInt(req.query.skip) || 0;
         const limit = parseInt(req.query.limit) || 10;
@@ -438,7 +451,7 @@ async function run() {
     });
 
     // get a single user by email
-    app.get("/users/:email", async (req, res, next) => {
+    app.get("/users/:email", verifyToken, async (req, res, next) => {
       const email = req.params.email;
       try {
         const user = await userCollection.findOne({ email });
@@ -494,22 +507,26 @@ async function run() {
     });
 
     // update a user role isPremium false or isAdmin true filtered by user email
-    app.patch("/users/role/update/:email", async (req, res, next) => {
-      const email = req.params.email;
-      const role = req.body;
-      try {
-        const result = await userCollection.updateOne(
-          { email },
-          { $set: role }
-        );
-        res.send(result);
-      } catch (error) {
-        next(error);
+    app.patch(
+      "/users/role/update/:email",
+      verifyToken,
+      async (req, res, next) => {
+        const email = req.params.email;
+        const role = req.body;
+        try {
+          const result = await userCollection.updateOne(
+            { email },
+            { $set: role }
+          );
+          res.send(result);
+        } catch (error) {
+          next(error);
+        }
       }
-    });
+    );
 
     // update user info filtered by _id with patch request
-    app.patch("/users/update/:id", async (req, res, next) => {
+    app.patch("/users/update/:id", verifyToken, async (req, res, next) => {
       const user = req.body;
       const id = req.params.id;
       try {
@@ -562,7 +579,7 @@ async function run() {
 
     // payment related functionalities
     // payment intent
-    app.post("/create-payment-intent", async (req, res, next) => {
+    app.post("/create-payment-intent", verifyToken, async (req, res, next) => {
       const { price } = req.body;
       const amount = parseInt(price * 100);
 
@@ -607,58 +624,63 @@ async function run() {
     // Dashboard related functionalities
 
     // admin analytics
-    app.get("/admin/analytics", async (req, res, next) => {
-      try {
-        const articles = await articleCollection.estimatedDocumentCount();
-        const users = await userCollection.estimatedDocumentCount();
-        const nonPremium = await userCollection.countDocuments({
-          isPremium: false,
-        });
-        const premium = await userCollection.countDocuments({
-          isPremium: true,
-        });
-        const publishers = await publisherCollection.estimatedDocumentCount();
-        const subscriptions =
-          await subscriptionCollection.estimatedDocumentCount();
-        const totalPayment = await subscriptionCollection
-          .aggregate([
-            { $project: { totalPrice: { $sum: "$priceAndTime.price" } } },
-          ])
-          .toArray();
-        const payment = totalPayment?.[0] && totalPayment[0].totalPrice;
+    app.get(
+      "/admin/analytics",
+      verifyToken,
+      verifyAdmin,
+      async (req, res, next) => {
+        try {
+          const articles = await articleCollection.estimatedDocumentCount();
+          const users = await userCollection.estimatedDocumentCount();
+          const nonPremium = await userCollection.countDocuments({
+            isPremium: false,
+          });
+          const premium = await userCollection.countDocuments({
+            isPremium: true,
+          });
+          const publishers = await publisherCollection.estimatedDocumentCount();
+          const subscriptions =
+            await subscriptionCollection.estimatedDocumentCount();
+          const totalPayment = await subscriptionCollection
+            .aggregate([
+              { $project: { totalPrice: { $sum: "$priceAndTime.price" } } },
+            ])
+            .toArray();
+          const payment = totalPayment?.[0] && totalPayment[0].totalPrice;
 
-        const articlesPerPublisher = await articleCollection
-          .aggregate([
-            {
-              $group: {
-                _id: "$publisher.name",
-                totalArticles: { $sum: 1 },
-                totalViews: { $sum: "$viewCount" },
+          const articlesPerPublisher = await articleCollection
+            .aggregate([
+              {
+                $group: {
+                  _id: "$publisher.name",
+                  totalArticles: { $sum: 1 },
+                  totalViews: { $sum: "$viewCount" },
+                },
               },
-            },
-          ])
-          .toArray();
+            ])
+            .toArray();
 
-        res.send({
-          articles,
-          users,
-          nonPremium,
-          premium,
-          publishers,
-          subscriptions,
-          payment,
-          articlesPerPublisher,
-        });
-      } catch (error) {
-        next(error);
+          res.send({
+            articles,
+            users,
+            nonPremium,
+            premium,
+            publishers,
+            subscriptions,
+            payment,
+            articlesPerPublisher,
+          });
+        } catch (error) {
+          next(error);
+        }
       }
-    });
+    );
 
     // // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    // await client.db("admin").command({ ping: 1 });
+    // console.log(
+    //   "Pinged your deployment. You successfully connected to MongoDB!"
+    // );
   } finally {
     // await client.close();
   }
@@ -674,6 +696,4 @@ app.get("/", (req, res) => {
 app.use(errorHandler);
 
 // Start the server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+app.listen(port);
