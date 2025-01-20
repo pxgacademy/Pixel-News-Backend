@@ -153,6 +153,34 @@ async function run() {
       }
     });
 
+    // get 6 articles for slider
+    app.get("/articles/most-popular", async (req, res, next) => {
+      try {
+        const articles = await articleCollection
+          .aggregate([
+            { $match: { status: "approved" } },
+            { $sort: { viewCount: -1 } },
+            { $skip: 6 },
+            { $limit: 5 },
+            {
+              $project: {
+                title: 1,
+                description: 1,
+                viewCount: 1,
+                image: 1,
+                date: 1,
+                isPaid: 1,
+                "publisher.name": 1,
+              },
+            },
+          ])
+          .toArray();
+        res.send(articles);
+      } catch (error) {
+        next(error);
+      }
+    });
+
     // get all articles with aggregate for getting user's name, email, and image
     app.get("/articles", verifyToken, verifyAdmin, async (req, res, next) => {
       try {
