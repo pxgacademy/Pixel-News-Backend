@@ -386,22 +386,18 @@ async function run() {
     );
 
     // increase viewCount to a single article filtered by _id
-    app.patch(
-      "/articles/view-count/:id",
-      verifyToken,
-      async (req, res, next) => {
-        const id = req.params.id;
-        try {
-          const result = await articleCollection.updateOne(
-            { _id: new ObjectId(id) },
-            { $inc: { viewCount: 1 } }
-          );
-          res.send(result);
-        } catch (error) {
-          next(error);
-        }
+    app.patch("/articles/view-count/:id", async (req, res, next) => {
+      const id = req.params.id;
+      try {
+        const result = await articleCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $inc: { viewCount: 1 } }
+        );
+        res.send(result);
+      } catch (error) {
+        next(error);
       }
-    );
+    });
 
     // delete an article filtered by _id
     app.delete("/articles/:id", verifyToken, async (req, res, next) => {
